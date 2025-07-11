@@ -1,0 +1,16 @@
+SystemID GBA
+1279	b	h	0	IWRAM	Samus Pose
+0C12	b	u	0	IWRAM	Game Mode
+0018	b	h	0	IWRAM	Game Status
+134F	b	b	0	IWRAM	Missle Upgrades
+134E	b	b	0	IWRAM	Beam Upgrades
+1350	b	b	0	IWRAM	Misc/Suit Upgrades
+0041	b	u	0	IWRAM	Main Deck Collection
+0042	b	u	0	IWRAM	Sec 1 Collection
+0043	b	u	0	IWRAM	Sec 2 Collection
+0044	b	u	0	IWRAM	Sec 3 Collection
+0045	b	u	0	IWRAM	Sec 4 Collection
+0046	b	u	0	IWRAM	Sec 5 Collection
+0047	b	u	0	IWRAM	Sec 6 Collection
+00A9	b	h	0	IWRAM	Foreground Properties (Omega when 4A)
+

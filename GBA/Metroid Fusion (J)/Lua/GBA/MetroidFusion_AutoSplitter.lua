@@ -5,6 +5,17 @@ local MISSILE_STATUS_ADDR <const> = 0x134F;
 local BEAM_STATUS_ADDR <const> = 0x134E;
 local MISC_SUIT_STATUS_ADDR <const> = 0x1350;
 
+local MAIN_DECK_COMPLETION_ADDR <const> = 0x0041; -- 100% is 13/0x0D
+local SEC_1_COMPLETION_ADDR <const> = 0x0042; -- 100% is 12/0x0C
+local SEC_2_COMPLETION_ADDR <const> = 0x0043; -- 100% is 17/0x11
+local SEC_3_COMPLETION_ADDR <const> = 0x0044; -- 100% is 16/0x10
+local SEC_4_COMPLETION_ADDR <const> = 0x0045; -- 100% is 15/0x0F
+local SEC_5_COMPLETION_ADDR <const> = 0x0046; -- 100% is 15/0x0F
+local SEC_6_COMPLETION_ADDR <const> = 0x0047; -- 100% is 12/0x0C
+
+local FOREGROUND_PROPERTIES_ADDR <const> = 0x00A9; -- 0x4A is Omega Metroid Room
+local SAMUS_POSE_ADDR <const> = 0x1279; -- 0x20 when getting sucked into the ship for final time.
+
 local IWRAM_ADDR <const> = 0x03000000;
 
 local upgrades = {}
@@ -48,20 +59,37 @@ local function pipe_read()
 	return line
 end
 
-local function get_upgrades_list()
+local function get_game_status()
 	local missile_status = monitored_values[MISSILE_STATUS_ADDR] or mainmemory.readbyte(MISSILE_STATUS_ADDR)
 	local beam_status = monitored_values[BEAM_STATUS_ADDR] or mainmemory.readbyte(BEAM_STATUS_ADDR)
 	local misc_suit_status = monitored_values[MISC_SUIT_STATUS_ADDR] or mainmemory.readbyte(MISC_SUIT_STATUS_ADDR)
+
+	local main_deck_status = monitored_values[MAIN_DECK_COMPLETION_ADDR] or mainmemory.readbyte(MAIN_DECK_COMPLETION_ADDR)
+	local sec_1_status = monitored_values[SEC_1_COMPLETION_ADDR] or mainmemory.readbyte(SEC_1_COMPLETION_ADDR)
+	local sec_2_status = monitored_values[SEC_2_COMPLETION_ADDR] or mainmemory.readbyte(SEC_2_COMPLETION_ADDR)
+	local sec_3_status = monitored_values[SEC_3_COMPLETION_ADDR] or mainmemory.readbyte(SEC_3_COMPLETION_ADDR)
+	local sec_4_status = monitored_values[SEC_4_COMPLETION_ADDR] or mainmemory.readbyte(SEC_4_COMPLETION_ADDR)
+	local sec_5_status = monitored_values[SEC_5_COMPLETION_ADDR] or mainmemory.readbyte(SEC_5_COMPLETION_ADDR)
+	local sec_6_status = monitored_values[SEC_6_COMPLETION_ADDR] or mainmemory.readbyte(SEC_6_COMPLETION_ADDR)
 
 	if LOG_LEVEL >= 3 then
 		print("Getting Upgrades List... \n")
 		print("Missile Status:", bits(missile_status))
 		print("Beam Upgrade Status:", bits(beam_status))
 		print("Misc Suit Status:", bits(misc_suit_status))
+		print("MainDeck Completion:", string.format("%d/13", main_deck_status), string.format("%.1f %%", main_deck_status * 100 / 13))
+		print("Sec 1 Completion:", string.format("%d/12", sec_1_status), string.format("%.1f %%", sec_1_status * 100 / 12))
+		print("Sec 2 Completion:", string.format("%d/17", sec_2_status), string.format("%.1f %%", sec_2_status * 100 / 17))
+		print("Sec 3 Completion:", string.format("%d/16", sec_3_status), string.format("%.1f %%", sec_3_status * 100 / 16))
+		print("Sec 4 Completion:", string.format("%d/15", sec_4_status), string.format("%.1f %%", sec_4_status * 100 / 15))
+		print("Sec 5 Completion:", string.format("%d/15", sec_5_status), string.format("%.1f %%", sec_5_status * 100 / 15))
+		print("Sec 6 Completion:", string.format("%d/12", sec_6_status), string.format("%.1f %%", sec_6_status * 100 / 12))
+		print("Final Completion:", string.format("%d %%", (main_deck_status + sec_1_status + sec_2_status + sec_3_status + sec_4_status + sec_5_status + sec_6_status)))
 		print("")
 	end
 
 	local new_upgrades = {}
+	local new_completed_locations = {}
 	local new_split_index = 0
 
 	if missile_status & 0x01 ~= 0x0 then
@@ -113,7 +141,7 @@ local function get_upgrades_list()
 
 	if misc_suit_status & 0x08 ~= 0x0 then
 		table.insert(new_upgrades, "Screw Attack")
-		new_split_index = math.max(new_split_index, 17)
+		new_split_index = math.max(new_split_index, 18)
 	end
 
 	if misc_suit_status & 0x10 ~= 0x0 then
@@ -148,10 +176,45 @@ local function get_upgrades_list()
 
 	if beam_status & 0x08 ~= 0x0 then
 		table.insert(new_upgrades, "Wave Beam")
+		new_split_index = math.max(new_split_index, 17)
+	end
+
+	if main_deck_status == 0x0D then
+		table.insert(new_completed_locations, "Main Deck")
+		new_split_index = math.max(new_split_index, 24)
+	end
+
+	if sec_1_status == 0x0C then
+		table.insert(new_completed_locations, "Sector 1")
+		new_split_index = math.max(new_split_index, 22)
+	end
+
+	if sec_2_status == 0x11 then
+		table.insert(new_completed_locations, "Sector 2")
+		new_split_index = math.max(new_split_index, 23)
+	end
+
+	if sec_3_status == 0x10 then
+		table.insert(new_completed_locations, "Sector 3")
+		new_split_index = math.max(new_split_index, 19)
+	end
+
+	if sec_4_status == 0x0F then
+		table.insert(new_completed_locations, "Sector 4")
 		new_split_index = math.max(new_split_index, 16)
 	end
 
-	return new_upgrades, new_split_index
+	if sec_5_status == 0x0F then
+		table.insert(new_completed_locations, "Sector 5")
+		new_split_index = math.max(new_split_index, 20)
+	end
+
+	if sec_6_status == 0x0C then
+		table.insert(new_completed_locations, "Sector 6")
+		new_split_index = math.max(new_split_index, 21)
+	end
+
+	return new_upgrades, new_split_index, new_completed_locations
 end
 
 local function recover_status()
@@ -159,12 +222,30 @@ local function recover_status()
 	monitored_values[BEAM_STATUS_ADDR] = mainmemory.readbyte(BEAM_STATUS_ADDR)
 	monitored_values[MISC_SUIT_STATUS_ADDR] = mainmemory.readbyte(MISC_SUIT_STATUS_ADDR)
 
-	local current_upgrades, split_index = get_upgrades_list()
+	monitored_values[MAIN_DECK_COMPLETION_ADDR] = mainmemory.readbyte(MAIN_DECK_COMPLETION_ADDR)
+	monitored_values[SEC_1_COMPLETION_ADDR] = mainmemory.readbyte(SEC_1_COMPLETION_ADDR)
+	monitored_values[SEC_2_COMPLETION_ADDR] = mainmemory.readbyte(SEC_2_COMPLETION_ADDR)
+	monitored_values[SEC_3_COMPLETION_ADDR] = mainmemory.readbyte(SEC_3_COMPLETION_ADDR)
+	monitored_values[SEC_4_COMPLETION_ADDR] = mainmemory.readbyte(SEC_4_COMPLETION_ADDR)
+	monitored_values[SEC_5_COMPLETION_ADDR] = mainmemory.readbyte(SEC_5_COMPLETION_ADDR)
+	monitored_values[SEC_6_COMPLETION_ADDR] = mainmemory.readbyte(SEC_6_COMPLETION_ADDR)
+
+	monitored_values[FOREGROUND_PROPERTIES_ADDR] = mainmemory.readbyte(FOREGROUND_PROPERTIES_ADDR)
+
+	local current_upgrades, split_index, completed_sectors = get_game_status()
 
 	if #current_upgrades > 0 then
 		print("Found upgrades: ")
 		for _, current_upgrades in ipairs(current_upgrades) do
 			print(" - " .. current_upgrades)
+		end
+		print("")
+	end
+
+	if #completed_sectors > 0 then
+		print("Completed sectors: ")
+		for _, completed_sector in ipairs(completed_sectors) do
+			print(" - " .. completed_sector)
 		end
 		print("")
 	end
@@ -200,7 +281,7 @@ local function recover_status()
 end
 
 local function sync() 
-	local current_upgrades, split_index = get_upgrades_list()
+	local current_upgrades, split_index = get_game_status()
 
 	if split_index - current_split_index > 1 then
 		print("Split Index of 2 or Greater Mismatch Detected!")
@@ -265,6 +346,22 @@ local function monitor_value(addr, val, flags)
 	sync()
 end
 
+local function check_for_final(addr, val, flags)
+	if (val ~= 0x20) then
+		return
+	end
+
+	if monitored_values[FOREGROUND_PROPERTIES_ADDR] ~= 0x4A then
+		return
+	end
+
+	if LOG_LEVEL >= 1 then
+		print("Final Split!")
+	end
+
+	pipe_write("split")
+end
+
 console.clear()
 pipe_handle = init_livesplit()
 
@@ -277,6 +374,17 @@ event.on_bus_write(start_and_stop_game, GAME_STATUS_ADDR + IWRAM_ADDR)
 event.on_bus_write(monitor_value, MISSILE_STATUS_ADDR + IWRAM_ADDR)
 event.on_bus_write(monitor_value, BEAM_STATUS_ADDR + IWRAM_ADDR)
 event.on_bus_write(monitor_value, MISC_SUIT_STATUS_ADDR + IWRAM_ADDR)
+
+event.on_bus_write(monitor_value, MAIN_DECK_COMPLETION_ADDR + IWRAM_ADDR)
+event.on_bus_write(monitor_value, SEC_1_COMPLETION_ADDR + IWRAM_ADDR)
+event.on_bus_write(monitor_value, SEC_2_COMPLETION_ADDR + IWRAM_ADDR)
+event.on_bus_write(monitor_value, SEC_3_COMPLETION_ADDR + IWRAM_ADDR)
+event.on_bus_write(monitor_value, SEC_4_COMPLETION_ADDR + IWRAM_ADDR)
+event.on_bus_write(monitor_value, SEC_5_COMPLETION_ADDR + IWRAM_ADDR)
+event.on_bus_write(monitor_value, SEC_6_COMPLETION_ADDR + IWRAM_ADDR)
+
+event.on_bus_write(monitor_value, FOREGROUND_PROPERTIES_ADDR + IWRAM_ADDR)
+event.on_bus_write(check_for_final, SAMUS_POSE_ADDR + IWRAM_ADDR)
 
 local function load_state()
 	console.clear()
