@@ -17,10 +17,10 @@ The Lua console will also show you your completion in real time. Useful for hook
 
 ## Modification
 
-I recommend starting changes with `get_game_status()` if modifying for another category. Change the second parameter to the intended split index. I recommend using the `monitored_values` abstraction for any addresses updated. As they will be called almost any time Samus' status is updating, so you only want to act on the one that's changed.
+I recommend starting changes with `splits` array if modifying for another category, should be just deleting entries for matching any% splits. There are three types of possibly useful operands on these if you're looking to add more splits; "bit_and" which you can use on the binary flags for Samus' inventory and other bitwise flags. "eq" for just straight up checking a value. And "transform" for when one value strictly becomes another, useful for cutscenes and menus.
 
 ## Tools
 
-The `GBA/State` folder contains all the test cases for the base splits. Though its missing the PreSec1Done state but it's not hard to get to from PreSec5Done, if I run into a bug I'll add that specific one.
+The `GBA/State` folder contains all the test cases for the base splits. 
 
 The `Tools` folder contains the RAM watch table I used to build this with labelled notes and in a format that's helpful for my use at least. I recommend checking the RAM map for the values, but their addresses are off, I imagine that's because of region differences.

@@ -1,4 +1,4 @@
-local LOG_LEVEL <const> = 3
+local LOG_LEVEL <const> = 0
 
 local GAME_STATUS_ADDR <const> = 0x0018;
 local MISSILE_STATUS_ADDR <const> = 0x134F;
@@ -17,22 +17,67 @@ local GAMEMODE_ADDR <const> = 0x0C12; -- 0x0D is Demo for JP unlike RAM map says
 local FOREGROUND_PROPERTIES_ADDR <const> = 0x00A9; -- 0x4A is Omega Metroid Room
 local SAMUS_POSE_ADDR <const> = 0x1279; -- 0x20 when getting sucked into the ship for final time.
 
-local IWRAM_ADDR <const> = 0x03000000;
+local IWRAM_ADDR_OFFSET <const> = 0x03000000;
 
-local upgrades = {}
-local current_split_index = 0
+local current_split_index = 0 -- Freshly Reset
+
+-- Each line here is a split that will be sent to LiveSplit.
+local splits = {
+	-- Start
+	{ ["iw_addr"]= GAMEMODE_ADDR, ["operand"]= "transform", ["valueFrom"]= 0x07, ["value"]= 0x03 },
+	-- Missle
+	{ ["iw_addr"]= MISSILE_STATUS_ADDR, ["operand"]= "bit_and", ["value"]= 0x01 },
+	-- Morph Ball
+	{ ["iw_addr"]= MISC_SUIT_STATUS_ADDR, ["operand"]= "bit_and", ["value"]= 0x40 },
+	-- Charge Beam
+	{ ["iw_addr"]= BEAM_STATUS_ADDR, ["operand"]= "bit_and", ["value"]= 0x01 },
+	-- Bomb
+	{ ["iw_addr"]= MISSILE_STATUS_ADDR, ["operand"]= "bit_and", ["value"]= 0x10 },
+	-- Hi-Jump
+	{ ["iw_addr"]= MISC_SUIT_STATUS_ADDR, ["operand"]= "bit_and", ["value"]= 0x01 },
+	-- Speed Booster
+	{ ["iw_addr"]= MISC_SUIT_STATUS_ADDR, ["operand"]= "bit_and", ["value"]= 0x02 },
+	-- Super Missles
+	{ ["iw_addr"]= MISSILE_STATUS_ADDR, ["operand"]= "bit_and", ["value"]= 0x02 },
+	-- Varia Suit
+	{ ["iw_addr"]= MISC_SUIT_STATUS_ADDR, ["operand"]= "bit_and", ["value"]= 0x10 },
+	-- Ice Missles
+	{ ["iw_addr"]= MISSILE_STATUS_ADDR, ["operand"]= "bit_and", ["value"]= 0x04 },
+	-- Wide Beam
+	{ ["iw_addr"]= BEAM_STATUS_ADDR, ["operand"]= "bit_and", ["value"]= 0x02 },
+	-- Power Bomb
+	{ ["iw_addr"]= MISSILE_STATUS_ADDR, ["operand"]= "bit_and", ["value"]= 0x20 },
+	-- Space Jump
+	{ ["iw_addr"]= MISC_SUIT_STATUS_ADDR, ["operand"]= "bit_and", ["value"]= 0x04 },
+	-- Plasma Beam
+	{ ["iw_addr"]= BEAM_STATUS_ADDR, ["operand"]= "bit_and", ["value"]= 0x04 },
+	-- Gravity Suit
+	{ ["iw_addr"]= MISC_SUIT_STATUS_ADDR, ["operand"]= "bit_and", ["value"]= 0x20 },
+	-- Diffusion Missiles
+	{ ["iw_addr"]= MISSILE_STATUS_ADDR, ["operand"]= "bit_and", ["value"]= 0x08 },
+	-- Sector 4 100%
+	{ ["iw_addr"]= SEC_4_COMPLETION_ADDR, ["operand"]= "eq", ["value"]= 0x0F },
+	-- Wave Beam
+	{ ["iw_addr"]= BEAM_STATUS_ADDR, ["operand"]= "bit_and", ["value"]= 0x08 },
+	-- Screw Attack
+	{ ["iw_addr"]= MISC_SUIT_STATUS_ADDR, ["operand"]= "bit_and", ["value"]= 0x08 },
+	-- Sector 3 100%
+	{ ["iw_addr"]= SEC_3_COMPLETION_ADDR, ["operand"]= "eq", ["value"]= 0x10 },
+	-- Sector 5 100%
+	{ ["iw_addr"]= SEC_5_COMPLETION_ADDR, ["operand"]= "eq", ["value"]= 0x0F },
+	-- Sector 6 100%
+	{ ["iw_addr"]= SEC_6_COMPLETION_ADDR, ["operand"]= "eq", ["value"]= 0x0C },
+	-- Sector 1 100%
+	{ ["iw_addr"]= SEC_1_COMPLETION_ADDR, ["operand"]= "eq", ["value"]= 0x0C },
+	-- Sector 2 100%
+	{ ["iw_addr"]= SEC_2_COMPLETION_ADDR, ["operand"]= "eq", ["value"]= 0x11 },
+	-- Main Deck 100%
+	{ ["iw_addr"]= MAIN_DECK_COMPLETION_ADDR, ["operand"]= "eq", ["value"]= 0x0D },
+	-- End
+	{ ["iw_addr"]= FOREGROUND_PROPERTIES_ADDR, ["operand"]= "final", ["value"]= 0x4A }, 
+}
 
 local monitored_values = {}
-
-local function bits(n)
-	local t = {}
-	for i=7,0,-1 do
-	  t[#t+1] = math.floor(n / 2^i)
-	  n = n % 2^i
-	end
-	return table.concat(t)
-end
-
 
 local function pipe_write(data)
 	if LOG_LEVEL >= 3 then
@@ -60,200 +105,116 @@ local function pipe_read()
 	return line
 end
 
-local function get_game_status()
-	local missile_status = monitored_values[MISSILE_STATUS_ADDR] or mainmemory.readbyte(MISSILE_STATUS_ADDR)
-	local beam_status = monitored_values[BEAM_STATUS_ADDR] or mainmemory.readbyte(BEAM_STATUS_ADDR)
-	local misc_suit_status = monitored_values[MISC_SUIT_STATUS_ADDR] or mainmemory.readbyte(MISC_SUIT_STATUS_ADDR)
-
-	local main_deck_status = monitored_values[MAIN_DECK_COMPLETION_ADDR] or mainmemory.readbyte(MAIN_DECK_COMPLETION_ADDR)
-	local sec_1_status = monitored_values[SEC_1_COMPLETION_ADDR] or mainmemory.readbyte(SEC_1_COMPLETION_ADDR)
-	local sec_2_status = monitored_values[SEC_2_COMPLETION_ADDR] or mainmemory.readbyte(SEC_2_COMPLETION_ADDR)
-	local sec_3_status = monitored_values[SEC_3_COMPLETION_ADDR] or mainmemory.readbyte(SEC_3_COMPLETION_ADDR)
-	local sec_4_status = monitored_values[SEC_4_COMPLETION_ADDR] or mainmemory.readbyte(SEC_4_COMPLETION_ADDR)
-	local sec_5_status = monitored_values[SEC_5_COMPLETION_ADDR] or mainmemory.readbyte(SEC_5_COMPLETION_ADDR)
-	local sec_6_status = monitored_values[SEC_6_COMPLETION_ADDR] or mainmemory.readbyte(SEC_6_COMPLETION_ADDR)
+local function check_split_by_memory(split) 
+	local value = mainmemory.readbyte(split["iw_addr"])
 
 	if LOG_LEVEL >= 3 then
-		print("Getting Upgrades List... \n")
-		print("Missile Status:", bits(missile_status))
-		print("Beam Upgrade Status:", bits(beam_status))
-		print("Misc Suit Status:", bits(misc_suit_status))
-		print("MainDeck Completion:", string.format("%d/13", main_deck_status), string.format("%.1f %%", main_deck_status * 100 / 13))
-		print("Sec 1 Completion:", string.format("%d/12", sec_1_status), string.format("%.1f %%", sec_1_status * 100 / 12))
-		print("Sec 2 Completion:", string.format("%d/17", sec_2_status), string.format("%.1f %%", sec_2_status * 100 / 17))
-		print("Sec 3 Completion:", string.format("%d/16", sec_3_status), string.format("%.1f %%", sec_3_status * 100 / 16))
-		print("Sec 4 Completion:", string.format("%d/15", sec_4_status), string.format("%.1f %%", sec_4_status * 100 / 15))
-		print("Sec 5 Completion:", string.format("%d/15", sec_5_status), string.format("%.1f %%", sec_5_status * 100 / 15))
-		print("Sec 6 Completion:", string.format("%d/12", sec_6_status), string.format("%.1f %%", sec_6_status * 100 / 12))
-		print("Final Completion:", string.format("%d %%", (main_deck_status + sec_1_status + sec_2_status + sec_3_status + sec_4_status + sec_5_status + sec_6_status)))
-		print("")
+		print(string.format("Checking split @0x%x: 0x%x %s 0x%x", split["iw_addr"], value, split["operand"], split["value"]))
 	end
 
-	local new_upgrades = {}
-	local new_completed_locations = {}
-	local new_split_index = 0
+	if split["operand"] == "bit_and" then
+		return (value & split["value"]) == split["value"]
+	elseif split["operand"] == "eq" then
+		return value == split["value"]
+	elseif split["operand"] == "final" then
+		-- Why are you running this on a completed game?
+		if mainmemory.readbyte(GAMEMODE_ADDR) == 0x0A then
+			pipe_write("reset")
+			current_split_index = 0
+		end
 
-	if missile_status & 0x01 ~= 0x0 then
-		table.insert(new_upgrades, "Missile")
+		return false
+	else
+		error("Unknown operand: " .. split["operand"])
+	end
+end
 
-		-- Change these if you need your split index to be different
-		new_split_index = math.max(new_split_index, 1)
+local transform_op_storage = 0;
+local active_callback = nil;
+
+local function arm_split(split)
+	local iw_addr = split["iw_addr"]
+	local operand = split["operand"]
+	local value = split["value"]
+	local callback_name	= string.format("livesplit-%x-%s-%x",iw_addr, operand, value)
+	active_callback = callback_name
+
+	if LOG_LEVEL >= 3 then
+		print(string.format("Arming split %s", callback_name))
 	end
 
-	if missile_status & 0x02 ~= 0x0 then
-		table.insert(new_upgrades, "Super Missile")
-		new_split_index = math.max(new_split_index, 7)
+	local function send_split()
+		current_split_index = current_split_index + 1
+		pipe_write("startorsplit")
+		event.unregisterbyname(active_callback)
+		arm_split(splits[current_split_index + 1])
 	end
 
-	if missile_status & 0x04 ~= 0x0 then
-		table.insert(new_upgrades, "Ice Missles")
-		new_split_index = math.max(new_split_index, 9)
-	end
+	if (operand == "bit_and") then
+		event.on_bus_write(function (addr, val, flags)
+			if val & value == value then
+				send_split()
+			end
+		end, iw_addr + IWRAM_ADDR_OFFSET, callback_name)
+	elseif (operand == "eq") then
+		event.on_bus_write(function (addr, val, flags)
+			if val == value then
+				send_split()
+			end
+		end, iw_addr + IWRAM_ADDR_OFFSET, callback_name)
+	elseif (operand == "transform") then
+		local value_from = split["valueFrom"]
+		transform_op_storage = mainmemory.readbyte(iw_addr)
 
-	if missile_status & 0x08 ~= 0x0 then
-		table.insert(new_upgrades, "Diffusion Missiles")
-		new_split_index = math.max(new_split_index, 15)
-	end
+		event.on_bus_write(function (addr, val, flags)
+			if val == value and transform_op_storage == value_from then
+				send_split()
+			else
+				transform_op_storage = val
+			end
+		end, iw_addr + IWRAM_ADDR_OFFSET, callback_name)
+	elseif (operand == "final") then
+		local room_callback_name = callback_name .. "-check_for_final_room"
 
-	if missile_status & 0x10 ~= 0x0 then
-		table.insert(new_upgrades, "Bombs")
-		new_split_index = math.max(new_split_index, 4)
-	end
+		-- Are we already in the final room?
+		if mainmemory.readbyte(FOREGROUND_PROPERTIES_ADDR) == 0x4A then
+			-- Wait for the pose.
+			event.on_bus_write(function (addr, val, flags) 
+				if val == 0x20 then
+					pipe_write("split")
+					event.unregisterbyname(callback_name)
+				end
+			end, SAMUS_POSE_ADDR + IWRAM_ADDR_OFFSET, callback_name)
+		else
+			active_callback = room_callback_name
+			-- Wait for final room.
+			event.on_bus_write(function (addr, val, flags)
+				if val == 0x4A then
+					event.unregisterbyname(room_callback_name)
 
-	if missile_status & 0x20 ~= 0x0 then
-		table.insert(new_upgrades, "Power Bomb")
-		new_split_index = math.max(new_split_index, 11)
-	end
+					active_callback = callback_name
 
-	if misc_suit_status & 0x01 ~= 0x0 then
-		table.insert(new_upgrades, "Hi-Jump")
-		new_split_index = math.max(new_split_index, 5)
+					-- Then check for the pose of getting sucked up by the ship
+					event.on_bus_write(function (addr, val, flags) 
+						if val == 0x20 then
+							pipe_write("split")
+							event.unregisterbyname(callback_name)
+						end
+					end, SAMUS_POSE_ADDR + IWRAM_ADDR_OFFSET, callback_name)
+				end
+			end, FOREGROUND_PROPERTIES_ADDR + IWRAM_ADDR_OFFSET, room_callback_name)
+		end
+	else
+		error("Unknown operand: " .. operand)
 	end
-
-	if misc_suit_status & 0x02 ~= 0x0 then
-		table.insert(new_upgrades, "Speed Booster")
-		new_split_index = math.max(new_split_index, 6)
-	end
-
-    if misc_suit_status & 0x04 ~= 0x0 then
-		table.insert(new_upgrades, "Space Jump")
-		new_split_index = math.max(new_split_index, 12)
-	end
-
-	if misc_suit_status & 0x08 ~= 0x0 then
-		table.insert(new_upgrades, "Screw Attack")
-		new_split_index = math.max(new_split_index, 18)
-	end
-
-	if misc_suit_status & 0x10 ~= 0x0 then
-		table.insert(new_upgrades, "Varia Suit")
-		new_split_index = math.max(new_split_index, 8)
-	end
-
-	if misc_suit_status & 0x20 ~= 0x0 then
-		table.insert(new_upgrades, "Gravity Suit")
-		new_split_index = math.max(new_split_index, 14)
-	end
-
-	if misc_suit_status & 0x40 ~= 0x0 then
-		table.insert(new_upgrades, "Morph Ball")
-		new_split_index = math.max(new_split_index, 2)
-	end
-
-	if beam_status & 0x01 ~= 0x0 then
-		table.insert(new_upgrades, "Charge Beam")
-		new_split_index = math.max(new_split_index, 3)
-	end
-
-	if beam_status & 0x02 ~= 0x0 then
-		table.insert(new_upgrades, "Wide Beam")
-		new_split_index = math.max(new_split_index, 10)
-	end
-
-	if beam_status & 0x04 ~= 0x0 then
-		table.insert(new_upgrades, "Plasma Beam")
-		new_split_index = math.max(new_split_index, 13)
-	end
-
-	if beam_status & 0x08 ~= 0x0 then
-		table.insert(new_upgrades, "Wave Beam")
-		new_split_index = math.max(new_split_index, 17)
-	end
-
-	if main_deck_status == 0x0D then
-		table.insert(new_completed_locations, "Main Deck")
-		new_split_index = math.max(new_split_index, 24)
-	end
-
-	if sec_1_status == 0x0C then
-		table.insert(new_completed_locations, "Sector 1")
-		new_split_index = math.max(new_split_index, 22)
-	end
-
-	if sec_2_status == 0x11 then
-		table.insert(new_completed_locations, "Sector 2")
-		new_split_index = math.max(new_split_index, 23)
-	end
-
-	if sec_3_status == 0x10 then
-		table.insert(new_completed_locations, "Sector 3")
-		new_split_index = math.max(new_split_index, 19)
-	end
-
-	if sec_4_status == 0x0F then
-		table.insert(new_completed_locations, "Sector 4")
-		new_split_index = math.max(new_split_index, 16)
-	end
-
-	if sec_5_status == 0x0F then
-		table.insert(new_completed_locations, "Sector 5")
-		new_split_index = math.max(new_split_index, 20)
-	end
-
-	if sec_6_status == 0x0C then
-		table.insert(new_completed_locations, "Sector 6")
-		new_split_index = math.max(new_split_index, 21)
-	end
-
-	return new_upgrades, new_split_index, new_completed_locations
 end
 
 local function recover_status()
-	monitored_values[MISSILE_STATUS_ADDR] = mainmemory.readbyte(MISSILE_STATUS_ADDR)
-	monitored_values[BEAM_STATUS_ADDR] = mainmemory.readbyte(BEAM_STATUS_ADDR)
-	monitored_values[MISC_SUIT_STATUS_ADDR] = mainmemory.readbyte(MISC_SUIT_STATUS_ADDR)
-
-	monitored_values[MAIN_DECK_COMPLETION_ADDR] = mainmemory.readbyte(MAIN_DECK_COMPLETION_ADDR)
-	monitored_values[SEC_1_COMPLETION_ADDR] = mainmemory.readbyte(SEC_1_COMPLETION_ADDR)
-	monitored_values[SEC_2_COMPLETION_ADDR] = mainmemory.readbyte(SEC_2_COMPLETION_ADDR)
-	monitored_values[SEC_3_COMPLETION_ADDR] = mainmemory.readbyte(SEC_3_COMPLETION_ADDR)
-	monitored_values[SEC_4_COMPLETION_ADDR] = mainmemory.readbyte(SEC_4_COMPLETION_ADDR)
-	monitored_values[SEC_5_COMPLETION_ADDR] = mainmemory.readbyte(SEC_5_COMPLETION_ADDR)
-	monitored_values[SEC_6_COMPLETION_ADDR] = mainmemory.readbyte(SEC_6_COMPLETION_ADDR)
-
-	monitored_values[FOREGROUND_PROPERTIES_ADDR] = mainmemory.readbyte(FOREGROUND_PROPERTIES_ADDR)
-	monitored_values[GAMEMODE_ADDR] = mainmemory.readbyte(GAMEMODE_ADDR)
-
-	local current_upgrades, split_index, completed_sectors = get_game_status()
-
-	if #current_upgrades > 0 then
-		print("Found upgrades: ")
-		for _, current_upgrades in ipairs(current_upgrades) do
-			print(" - " .. current_upgrades)
-		end
-		print("")
-	end
-
-	if #completed_sectors > 0 then
-		print("Completed sectors: ")
-		for _, completed_sector in ipairs(completed_sectors) do
-			print(" - " .. completed_sector)
-		end
-		print("")
-	end
-
 	pipe_write("getsplitindex")
 	local livesplit_status = tonumber(pipe_read())
+
+	-- We're past the start point
+	current_split_index = 1
 
 	if livesplit_status == -1 then
 		pipe_write("starttimer")
@@ -261,43 +222,31 @@ local function recover_status()
 		livesplit_status = 0
 	end
 
-	if LOG_LEVEL >= 1 then
-		print("Current Split Index: " .. current_split_index)
-		print("Updated Split Index: " .. split_index)
+	while check_split_by_memory(splits[current_split_index + 1]) do
+		current_split_index = current_split_index + 1
 	end
-	
-	local index_to_skip_to = split_index - livesplit_status
-	current_split_index = split_index
 
-	if index_to_skip_to < 0 then
-		while index_to_skip_to < 0 do
+	if (current_split_index == livesplit_status) then
+		return
+	end
+
+	local skips = current_split_index - livesplit_status - 1
+
+	if skips < 0 then
+		while skips < 0 do
 			pipe_write("unsplit")
-			index_to_skip_to = index_to_skip_to + 1
+			skips = skips + 1
 		end
 	else
-		while index_to_skip_to > 0 do
+		while skips > 0 do
 			pipe_write("skipsplit")
-			index_to_skip_to = index_to_skip_to - 1
+			skips = skips - 1
 		end
 	end
+
+	arm_split(splits[current_split_index + 1])
 end
 
-local function sync() 
-	local current_upgrades, split_index = get_game_status()
-
-	if split_index - current_split_index > 1 then
-		print("Split Index of 2 or Greater Mismatch Detected!")
-		print("Current Split Index: " .. current_split_index)
-		print("Updated Split Index: " .. split_index)
-		print("Attempting to recover...")
-
-		recover_status()
-	elseif split_index - current_split_index == 1 then
-		print("Split!")
-		pipe_write("split")
-		current_split_index = split_index
-	end
-end
 
 local function init_livesplit()
     pipe_handle = io.open("//./pipe/LiveSplit", 'a+')
@@ -308,11 +257,12 @@ local function init_livesplit()
               "then load this script again")
     end
 
-	local game_active = mainmemory.readbyte(GAME_STATUS_ADDR)
+	local game_mode = mainmemory.readbyte(GAMEMODE_ADDR)
 
-	if (game_active == 0x0) then
+	if (game_mode == 0x0 or game_mode == 0x7) then
 		pipe_write("reset")
-    else 
+		arm_split(splits[current_split_index + 1])
+    elseif (game_mode ~= 0x4A) then 
 		print("Fusion 100% Autosplitter Started Mid-Game, Recovering at best ability... \n")
 		recover_status()
 	end
@@ -320,94 +270,14 @@ local function init_livesplit()
     return pipe_handle
 end
 
-local function start_and_stop_game(addr, val, flags)
-	if LOG_LEVEL >= 3 then
-		print("Game Status Change", string.format("0x%x", val))
-	end
-
-	if val == 2 then
-		pipe_write("starttimer")
-	elseif val == 0 then
-		pipe_write("reset")
-	end
-end
-
-local function monitor_value(addr, val, flags) 
-	local short_addr = addr - IWRAM_ADDR
-
-	if (val == monitored_values[short_addr]) then
-		return
-	end
-
-	monitored_values[short_addr] = val
-	
-	if LOG_LEVEL >= 3 then
-		print("Monitored Value Changed", string.format("0x%x: 0x%x", short_addr, monitored_values[short_addr]))
-	end
-
-	-- Demo mode doesn't sync.
-	if (monitored_values[GAMEMODE_ADDR] == 0x0D) then
-		if LOG_LEVEL >= 1 then
-			print("Demo Mode, not syncing.")
-		end
-		return
-	end
-	
-	-- Title Screen doesn't sync.
-	if (monitored_values[GAMEMODE_ADDR] == 0x00) then
-		if LOG_LEVEL >= 1 then
-			print("Title Screen, not syncing.")
-		end
-		return
-	end
-
-	sync()
-end
-
-local function check_for_final(addr, val, flags)
-	if (val ~= 0x20) then
-		return
-	end
-
-	if monitored_values[FOREGROUND_PROPERTIES_ADDR] ~= 0x4A then
-		return
-	end
-
-	if LOG_LEVEL >= 1 then
-		print("Final Split!")
-	end
-
-	pipe_write("split")
-end
-
 console.clear()
 pipe_handle = init_livesplit()
 
-if LOG_LEVEL >= 3 then
-	print("Working Memory Type: ", mainmemory.getname())
-end
-
-event.on_bus_write(start_and_stop_game, GAME_STATUS_ADDR + IWRAM_ADDR)
-
-event.on_bus_write(monitor_value, MISSILE_STATUS_ADDR + IWRAM_ADDR)
-event.on_bus_write(monitor_value, BEAM_STATUS_ADDR + IWRAM_ADDR)
-event.on_bus_write(monitor_value, MISC_SUIT_STATUS_ADDR + IWRAM_ADDR)
-
-event.on_bus_write(monitor_value, MAIN_DECK_COMPLETION_ADDR + IWRAM_ADDR)
-event.on_bus_write(monitor_value, SEC_1_COMPLETION_ADDR + IWRAM_ADDR)
-event.on_bus_write(monitor_value, SEC_2_COMPLETION_ADDR + IWRAM_ADDR)
-event.on_bus_write(monitor_value, SEC_3_COMPLETION_ADDR + IWRAM_ADDR)
-event.on_bus_write(monitor_value, SEC_4_COMPLETION_ADDR + IWRAM_ADDR)
-event.on_bus_write(monitor_value, SEC_5_COMPLETION_ADDR + IWRAM_ADDR)
-event.on_bus_write(monitor_value, SEC_6_COMPLETION_ADDR + IWRAM_ADDR)
-
-event.on_bus_write(monitor_value, FOREGROUND_PROPERTIES_ADDR + IWRAM_ADDR)
-event.on_bus_write(monitor_value, GAMEMODE_ADDR + IWRAM_ADDR)
-
-event.on_bus_write(check_for_final, SAMUS_POSE_ADDR + IWRAM_ADDR)
-
 local function load_state()
-	console.clear()
+	if active_callback then
+		event.unregisterbyname(active_callback)
+	end
+	
 	print("Load State Detected, recovering status...\n")
 	recover_status()
 end
