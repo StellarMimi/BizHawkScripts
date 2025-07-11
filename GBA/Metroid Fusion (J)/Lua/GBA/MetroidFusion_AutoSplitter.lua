@@ -13,6 +13,7 @@ local SEC_4_COMPLETION_ADDR <const> = 0x0045; -- 100% is 15/0x0F
 local SEC_5_COMPLETION_ADDR <const> = 0x0046; -- 100% is 15/0x0F
 local SEC_6_COMPLETION_ADDR <const> = 0x0047; -- 100% is 12/0x0C
 
+local GAMEMODE_ADDR <const> = 0x0C12; -- 0x0D is Demo for JP unlike RAM map says, ignore all sync requests
 local FOREGROUND_PROPERTIES_ADDR <const> = 0x00A9; -- 0x4A is Omega Metroid Room
 local SAMUS_POSE_ADDR <const> = 0x1279; -- 0x20 when getting sucked into the ship for final time.
 
@@ -231,6 +232,7 @@ local function recover_status()
 	monitored_values[SEC_6_COMPLETION_ADDR] = mainmemory.readbyte(SEC_6_COMPLETION_ADDR)
 
 	monitored_values[FOREGROUND_PROPERTIES_ADDR] = mainmemory.readbyte(FOREGROUND_PROPERTIES_ADDR)
+	monitored_values[GAMEMODE_ADDR] = mainmemory.readbyte(GAMEMODE_ADDR)
 
 	local current_upgrades, split_index, completed_sectors = get_game_status()
 
@@ -343,6 +345,22 @@ local function monitor_value(addr, val, flags)
 		print("Monitored Value Changed", string.format("0x%x: 0x%x", short_addr, monitored_values[short_addr]))
 	end
 
+	-- Demo mode doesn't sync.
+	if (monitored_values[GAMEMODE_ADDR] == 0x0D) then
+		if LOG_LEVEL >= 1 then
+			print("Demo Mode, not syncing.")
+		end
+		return
+	end
+	
+	-- Title Screen doesn't sync.
+	if (monitored_values[GAMEMODE_ADDR] == 0x00) then
+		if LOG_LEVEL >= 1 then
+			print("Title Screen, not syncing.")
+		end
+		return
+	end
+
 	sync()
 end
 
@@ -384,6 +402,8 @@ event.on_bus_write(monitor_value, SEC_5_COMPLETION_ADDR + IWRAM_ADDR)
 event.on_bus_write(monitor_value, SEC_6_COMPLETION_ADDR + IWRAM_ADDR)
 
 event.on_bus_write(monitor_value, FOREGROUND_PROPERTIES_ADDR + IWRAM_ADDR)
+event.on_bus_write(monitor_value, GAMEMODE_ADDR + IWRAM_ADDR)
+
 event.on_bus_write(check_for_final, SAMUS_POSE_ADDR + IWRAM_ADDR)
 
 local function load_state()
