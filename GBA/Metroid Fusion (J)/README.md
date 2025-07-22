@@ -40,4 +40,3 @@ The `Tools` folder contains the RAM watch table I used to build this with labell
 ### Todo
 - More thorough testing
 - Room Names
-- Might need to differentiate on sectors I imagine, I can't imagine all rooms fit in 255 IDs
