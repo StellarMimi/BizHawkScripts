@@ -63,7 +63,31 @@ local rooms = {
 		[41]="Transport from Sector 1",
 		[2]="Sector 1 Navigation",
 		[1]="Sector 1 Save",
-		
+		[11]="Sector 1 Recharge",
+		[0]="Sector 1 Main Hall",
+		[3]="SRX Entrance Hall",
+		[4]="Environmental Cavern 1",
+		[5]="Environmental Hall",
+		[6]="Junction Shaft",
+		[7]="Rocky Road",
+		[8]="West Maintenance Shaft",
+		[12]="Cavern Junction East",
+		[13]="Environmental Cavern 3",
+		[15]="Environmental Cavern 4",
+		[17]="Magma Cavern",
+		[16]="Serviceway",
+		[20]="Western Cave",
+		[32]="Environmental Cavern 2",
+		[33]="Junction Divide",
+		[35]="East Maintenance Shaft",
+		[37]="Tall Access Shaft",
+		[38]="Flooded Cavern",
+		[42]="Sector 1 Center Save",
+		[44]="Cavern Cache A",
+		[45]="Cavern Junction West",
+		[46]="Cavern Farm",
+		[47]="Flooded Shaft",
+
 	}
 }
 
