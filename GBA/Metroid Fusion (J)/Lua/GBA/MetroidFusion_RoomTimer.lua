@@ -20,17 +20,18 @@ local rooms = {
 		[15]="Habitation Deck Overlook",
 		[16]="Main Deck South Navigation",
 		[18]="West Wing Stairwell",
+		[19]="Transport to Sector Lobby",
 		[20]="Stairwell to Research",
 		[21]="East Wing Stairwell",
 		[22]="Habitation Deck Ventilation",
 		[23]="Quarantine Checkpoint",
 		[24]="Sector Lobby",
-		[25]="Transport to Sector 2",
-		[26]="Transport to Sector 4",
-		[27]="Transport to Sector 6",
-		[28]="Transport to Sector 1",
-		[29]="Transport to Sector 3",
-		[30]="Transport to Sector 5",
+		[25]="Transport to TRO",
+		[26]="Transport to AQA",
+		[27]="Transport to NOC",
+		[28]="Transport to SRX",
+		[29]="Transport to PYR",
+		[30]="Transport to ARC",
 		[32]="Operations Deck Navigation",
 		[33]="Main Deck Save",
 		[34]="Main Elevator Middle",
@@ -40,6 +41,7 @@ local rooms = {
 		[38]="Arachnus' Chamber",
 		[39]="Operations Deck Data",
 		[40]="Transport to Sector Lobby",
+		[41]="Access to Main Elevator",
 		[42]="Access to Main Elevator",
 		[44]="Operations Deck Save",
 		[45]="Operations Deck Ventilation Item West",
@@ -60,35 +62,79 @@ local rooms = {
 		[84]="Operations Deck Ventilation Item East",
 	},
 	[1] = {
-		[41]="Transport from Sector 1",
-		[2]="Sector 1 Navigation",
-		[1]="Sector 1 Save",
-		[11]="Sector 1 Recharge",
-		[0]="Sector 1 Main Hall",
+		[0]="SRX Main Hall",
+		[1]="SRX Save",
+		[2]="SRX Navigation",
 		[3]="SRX Entrance Hall",
 		[4]="Environmental Cavern 1",
 		[5]="Environmental Hall",
-		[6]="Junction Shaft",
+		[6]="Junction Divide",
 		[7]="Rocky Road",
 		[8]="West Maintenance Shaft",
+		[9]="Environmental Cavern 5",
+		[10]="Escape Roof",
+		[11]="SRX Recharge",
 		[12]="Cavern Junction East",
 		[13]="Environmental Cavern 3",
+		[14]="Junction Divide",
 		[15]="Environmental Cavern 4",
 		[17]="Magma Cavern",
 		[16]="Serviceway",
 		[20]="Western Cave",
 		[32]="Environmental Cavern 2",
-		[33]="Junction Divide",
+		[33]="Junction Shaft",
+		[34]="SRX East Save"
 		[35]="East Maintenance Shaft",
 		[37]="Tall Access Shaft",
 		[38]="Flooded Cavern",
-		[42]="Sector 1 Center Save",
+		[40]="Chozo Research",
+		[41]="Transport from SRX",
+		[42]="SRX Center Save",
 		[44]="Cavern Cache A",
 		[45]="Cavern Junction West",
 		[46]="Cavern Farm",
 		[47]="Flooded Shaft",
+		[50]="Hidden Save Cache"
+	},
+	[2] = {
+		[0]="TRO Main Hall",
+		[1]="TRO Save",
+		[2]="TRO Navigation",
+		[3]="Northeast Research Hall"
+		[4]="West Research Hall",
+		[5]="TRO Security Station",
+		-- Pre SA-X
+		[7]="Transit Plaza",
+		[8]="TRO Data Room",
+		[9]="Botonical Maze",
+		[10]="Jungle Chamber",
+		[11]="West Passage",
+		[13]="Central Shaft",
+		[26]="Level 1 Security Room",
+		[29]="Transport from TRO",
+		-- Post SA-X
+		[31]="Transit Plaza",
+		[37]="TRO Recharge",
+		[43]="Transfer Shaft",
 
-	}
+	},
+	[3] = {
+	},
+	[4] = {
+	},
+	[5] = {
+	},
+	[6] = {
+	},
+	[7] = {
+	},
+	[8] = {
+	},
+	[9] = {
+	},
+	[10] = {
+	},
+
 }
 
 local current_room = -1;
