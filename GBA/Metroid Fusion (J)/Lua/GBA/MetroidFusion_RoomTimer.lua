@@ -83,7 +83,7 @@ local rooms = {
 		[20]="Western Cave",
 		[32]="Environmental Cavern 2",
 		[33]="Junction Shaft",
-		[34]="SRX East Save"
+		[34]="SRX East Save",
 		[35]="East Maintenance Shaft",
 		[37]="Tall Access Shaft",
 		[38]="Flooded Cavern",
@@ -94,13 +94,13 @@ local rooms = {
 		[45]="Cavern Junction West",
 		[46]="Cavern Farm",
 		[47]="Flooded Shaft",
-		[50]="Hidden Save Cache"
+		[50]="Hidden Save Cache",
 	},
 	[2] = {
 		[0]="TRO Main Hall",
 		[1]="TRO Save",
 		[2]="TRO Navigation",
-		[3]="Northeast Research Hall"
+		[3]="Northeast Research Hall",
 		[4]="West Research Hall",
 		[5]="TRO Security Station",
 		-- Pre SA-X
